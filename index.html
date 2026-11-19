@@ -14,7 +14,6 @@
 <meta name="theme-color" content="#f5f2ea">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Source+Sans+3:wght@400;500;600&display=swap">
 <style>
@@ -190,7 +189,15 @@ var GS = typeof google !== "undefined" && google.script && google.script.run;
 var CONN_KEY = "logbuchVerbindung";
 function getConn(){ try { var c = JSON.parse(localStorage.getItem(CONN_KEY) || "null"); return c && c.u && c.k ? c : null; } catch(e){ return null; } }
 function setConn(c){ try { if (c) localStorage.setItem(CONN_KEY, JSON.stringify(c)); else localStorage.removeItem(CONN_KEY); } catch(e){} }
-var conn = GS ? null : getConn();
+/* Der Code steckt zusätzlich in der Adresse (#c=…). Das Home-Bildschirm-Symbol
+   merkt sich die Adresse, so geht die Verbindung nicht verloren, auch wenn
+   das iPhone den Speicher der Web-App leert. */
+function encodeCode(c){ return btoa(JSON.stringify({u:c.u,k:c.k})).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,""); }
+function hashConn(){ var m = /[#&]c=([A-Za-z0-9_\-]+)/.exec(location.hash || ""); if (!m) return null; try { return decodeCode(m[1]); } catch(e){ return null; } }
+function setHash(c){ try { history.replaceState(null, "", location.pathname + location.search + (c ? "#c=" + encodeCode(c) : "")); } catch(e){} }
+var conn = GS ? null : (hashConn() || getConn());
+if (conn && !GS) { setConn(conn); if (!hashConn()) setHash(conn); }
+var STANDALONE = !!(window.navigator.standalone || (window.matchMedia && matchMedia("(display-mode: standalone)").matches));
 var DEMO = false;
 var LIVE = GS || !!conn;
 
@@ -203,7 +210,7 @@ function apiCall(c, fn, arg){
 }
 function call(fn, arg){
   if (GS) return new Promise(function(res, rej){ google.script.run.withSuccessHandler(res).withFailureHandler(rej)[fn](arg); });
-  if (conn) return apiCall(conn, fn, arg).catch(function(e){ if (e.auth) { setConn(null); conn = null; LIVE = false; day = null; showSetup("Der Schlüssel passt nicht mehr. Bitte neu verbinden."); } throw e; });
+  if (conn) return apiCall(conn, fn, arg).catch(function(e){ if (e.auth) { setConn(null); setHash(null); conn = null; LIVE = false; day = null; showSetup("Der Schlüssel passt nicht mehr. Bitte neu verbinden."); } throw e; });
   return new Promise(function(res, rej){ setTimeout(function(){ try { res(MOCK[fn](arg)); } catch(e){ rej(e); } }, 250); });
 }
 
@@ -231,7 +238,8 @@ function showSetup(msg){
     var c; try { c = decodeCode(ta.value); } catch(e){ out.textContent = "Das ist kein gültiger Verbindungscode. Bitte ganz kopieren."; out.hidden = false; return; }
     btn.disabled = true; btn.textContent = "Prüfe …"; out.hidden = true;
     apiCall(c, "getDay", "").then(function(){
-      setConn(c); conn = c; LIVE = true; load("");
+      setConn(c); setHash(c); conn = c; LIVE = true; load("");
+      if (!STANDALONE) setTimeout(function(){ toast("Verbunden. Jetzt unten auf Teilen → „Zum Home-Bildschirm“ tippen.", 9000); }, 900);
     }).catch(function(e){
       btn.disabled = false; btn.textContent = "Verbinden";
       out.textContent = e.auth ? "Der Schlüssel passt nicht." : (e.message || String(e)); out.hidden = false;
@@ -243,13 +251,15 @@ function showSetup(msg){
     el("h2",{},["Mit dem Logbuch verbinden"]),
     el("div",{class:"setup"},[
       msg ? el("div",{class:"notice warn",text:msg}) : null,
-      el("p",{text:"Öffne einmal die alte Logbuch-Web-App, tippe ganz unten auf „Neue App verbinden“ und kopiere den Code. Füge ihn hier ein."}),
+      el("p",{text:"1. Öffne die alte Logbuch-Web-App, tippe ganz unten auf „Neue App verbinden“ und kopiere den Code."}),
+      el("p",{text:"2. Öffne diese Seite in Safari, füge den Code hier ein und tippe auf „Verbinden“."}),
+      el("p",{text:"3. Erst danach: Teilen → „Zum Home-Bildschirm“. Dann steckt die Verbindung im Symbol."}),
       ta, out,
       el("div",{class:"actions"},[btn, demoBtn])
     ])
   ]));
 }
-function disconnect(){ setConn(null); conn = null; LIVE = false; day = null; showSetup(); }
+function disconnect(){ setConn(null); setHash(null); conn = null; LIVE = false; day = null; showSetup(); }
 
 /* ---------- Zustand ---------- */
 var day = null, orig = {}, cur = {}, openLevel = {}, busy = false, favEdit = false, supQuery = "", supBox = null;
