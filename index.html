@@ -4,8 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>body{margin:0}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
-</head>
-<body>
 <title>Logbuch Tageseintrag</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -139,6 +137,8 @@ body.typing .savebar{display:none}
 .code textarea{min-height:80px;font-family:ui-monospace,Menlo,monospace;font-size:.8rem;word-break:break-all}
 </style>
 
+</head>
+<body>
 <div class="wrap">
   <header>
     <div class="nav">
@@ -530,7 +530,7 @@ function render(){
     field("harndrang",null,stepper("harndrang")),
     el("div",{class:"stats two"},[ stat(ro.hrv,"HRV"), stat(ro.schritte,"Schritte") ]),
     ("gewicht" in ro || "koerperfett" in ro) ? el("div",{class:"stats two"},[ stat(ro.gewicht,"Gewicht [kg]", ro.gewichtVom ? "vom "+shortDate(ro.gewichtVom) : ""), stat(ro.koerperfett,"Körperfett [%]", ro.koerperfettVom ? "vom "+shortDate(ro.koerperfettVom) : "") ]) : null,
-    el("div",{class:"hint",text:"Diese Werte kommen automatisch aus Apple Health, immer erst am Folgetag. Korrekturen bitte direkt in der Tabelle."})
+    el("div",{class:"hint",text:"Diese Werte kommen automatisch aus Apple Health: Gewicht und Körperfett am selben Tag, Schritte und HRV am Folgetag. Korrekturen bitte direkt in der Tabelle."})
   ]));
 
   parts.push(el("section",{class:"card"},[
